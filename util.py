@@ -30,5 +30,3 @@ def load_data():
     classes = numpy.array(classes)
     cPickle.dump(classes, open(cacheFile,'w'))
     return (images,classes)
-            
-load_data()
