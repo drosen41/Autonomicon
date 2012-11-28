@@ -46,6 +46,7 @@ def load_data(sample = 1.0):
                 classes.append(c)
         classes = numpy.array(classes)
         images = numpy.dstack(images)
+        images = numpy.squeeze(images)
         data = (images,classes)
         cPickle.dump(data, open(cacheFile,'w'))
     xs, ys = shared_dataset(data)
