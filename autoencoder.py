@@ -1,7 +1,3 @@
-import os
-import sys
-import time
-
 import numpy
 
 import theano
@@ -70,7 +66,6 @@ class dA(object):
         return T.nnet.sigmoid(T.dot(input, self.W) + self.b)
 
     def get_reconstructed_input(self, hidden):
-
         return  T.nnet.sigmoid(T.dot(hidden, self.W_prime) + self.b_prime)
 
     def get_cost_updates(self, corruption_level, learning_rate):
@@ -87,12 +82,12 @@ class dA(object):
 
         return (cost, updates)
 
-def train_dA(learning_rate=0.1, training_epochs=40, batch_size=20):
+def train_dA(learning_rate=0.1, training_epochs=500, batch_size=30):
     d = load_data()
     train_x, train_y = d[0]
     
     n_train_batches = train_x.get_value(borrow=True).shape[0] / batch_size
-    index = T.lscalar()    # index to a [mini]batch
+    index = T.lscalar() # index to a [mini]batch
     x = T.matrix('x')  # the data is presented as rasterized images    
 
     rng = numpy.random.RandomState(123)
