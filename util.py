@@ -24,10 +24,7 @@ def shuffle(x,y):
 
 def load_data(sub_sample = 1.0,
               test_sample = 0.1,
-              validation_sample=0.05):
-    """
-    loads our dataset into shared variables
-    """
+              validation_sample=0.1):
     data = None
     cacheFile = 'dataset.pkl'
     if(os.path.isfile(cacheFile)):
@@ -56,7 +53,7 @@ def load_data(sub_sample = 1.0,
                 i = Image.open(p + im)
                 # convert to grayscale
                 i = ImageOps.grayscale(i)
-                i = i.resize((50,50),Image.ANTIALIAS)
+                i = i.resize((28,28),Image.ANTIALIAS)
                 # convert to numpy array and normalize to [0,1]
                 i = numpy.array(i, dtype=numpy.float32)/255
                 i = i.flatten()
