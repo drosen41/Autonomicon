@@ -12,10 +12,10 @@ import PIL.Image
 class dA(object):
     def __init__(self, numpy_rng, theano_rng=None, input=None,
                  n_visible=784, n_hidden=500,
-                 W=None, bhid=None, bvis=None, chunks=5):
+                 W=None, bhid=None, bvis=None, chunk=5):
         self.n_visible = n_visible
         self.n_hidden = n_hidden
-
+        self.chunk=5
         # create a Theano random generator that gives symbolic random values
         if not theano_rng:
             theano_rng = RandomStreams(numpy_rng.randint(2 ** 30))
@@ -65,22 +65,30 @@ class dA(object):
     def get_hidden_values(self, input):
         return T.nnet.sigmoid(T.dot(input, self.W) + self.b)
 
-    # this totally doesn't work atm
+    # this returns a numpy array of the max weights for each output
     def get_hidden_values_max_pooled(self, input,step=1):
-        i = input.get_value(borrow=True)
-        xvals = range(0,i.shape(0),step)
-        yvals = range(0,i.shape(1),step)
-        outputs = [[0 for y in range(len(yvals))] for x in range(len(xvals))]
+        chunk=theano.shared(5)
+        s = input.eval().shape
+        print s
+        xvals = range(0,s[0]-chunk.get_value(),step)
+        yvals = range(0,s[1]-chunk.get_value(),step)
+        print xvals,yvals
+        outputs = numpy.zeros((len(yvals)*len(xvals),self.n_hidden))
+        i = T.scalar('i',dtype='int32')
+        j = T.scalar('j',dtype='int32')
+        m = T.matrix('m')
+        sub_matrix = theano.function([i,j],m[i:i+chunk,j:j+chunk],givens={m:input})
+        get_vals = theano.function([self.x],self.get_hidden_values(self.x))
+        c=0
         for x in range(len(xvals)):
-            for y in range(0,i.shape(0),step):
-                i[xvals[x]:xvals[x]+self.chunk,yvals[y]:yvals[y]+self.chunk]
-                outputs[x,y]=self.get_hidden_values(shared_i).eval()
+            for y in range(len(yvals)):
+                sub = sub_matrix(xvals[x],yvals[y]).reshape((1,-1))
+                print "sub:",sub,chunk.get_value()
+                outputs[c,:]=numpy.squeeze(get_vals(sub))
+                c += 1
         # reshape into something maxpool will like
-        shared_x = theano.shared(numpy.asarray(outputs,
-                                           dtype=theano.config.floatX),
-                             borrow=borrow)
         # actually our dimensionality is off :/
-        return 
+        return outputs.max(0)
                 
         
     def get_reconstructed_input(self, hidden):
@@ -100,14 +108,12 @@ class dA(object):
 
         return (cost, updates)
 
-def train_dA(learning_rate=0.1, training_epochs=500, batch_size=30):
-    d = load_data()
-    train_x, train_y = d[0]
+def train_dA(train_x, learning_rate=0.1, training_epochs=500, batch_size=30, chunk=5):
     # transform training data into  what we want
     xs=train_x.get_value(borrow=True)
     real_train = []
     for x in xs:        
-        real_train += chunkify(x,self.chunks)
+        real_train += chunkify(x,chunk)
     train_x = theano.shared(numpy.asarray(real_train,
                                            dtype=theano.config.floatX), borrow=True)
     n_train_batches = train_x.get_value(borrow=True).shape[0] / batch_size
@@ -118,7 +124,7 @@ def train_dA(learning_rate=0.1, training_epochs=500, batch_size=30):
     theano_rng = RandomStreams(rng.randint(2 ** 30))
     image_size = train_x.get_value(borrow=True).shape[1]
     da = dA(numpy_rng=rng, theano_rng=theano_rng, input=x,
-            n_visible=image_size, n_hidden=500)
+            n_visible=image_size, n_hidden=int(.6*image_size), chunk=chunk)
 
     cost, updates = da.get_cost_updates(corruption_level=0.3,
                                         learning_rate=learning_rate)
@@ -134,11 +140,14 @@ def train_dA(learning_rate=0.1, training_epochs=500, batch_size=30):
 
     image = PIL.Image.fromarray(tile_raster_images(
         X=da.W.get_value(borrow=True).T,
-        img_shape=(50, 50), tile_shape=(10, 10),
+        img_shape=(chunk, chunk), tile_shape=(10, 10),
         tile_spacing=(1, 1)))
     image.save('filters_corruption_30.png')
+    return da
 
 
 if __name__ == '__main__':
-    train_dA()
+    d = load_data()
+    train_x, train_y = d[0]
+    train_dA(train_x)
 
