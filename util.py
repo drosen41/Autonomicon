@@ -59,7 +59,7 @@ def load_data(sub_sample = 1.0,
                 i = i.resize((50,50),Image.ANTIALIAS)
                 # convert to numpy array and normalize to [0,1]
                 i = numpy.array(i, dtype=numpy.float32)/255
-                i = i.flatten()
+                # i = i.flatten()
                 r = random.random()
                 if r < test_sample:
                     test_images.append(i)
@@ -134,15 +134,8 @@ def load_data_chunk(sub_sample = 1.0,
                     validate_images.append(i)
                     validate_classes.append(c)
                 else:
-                    # training images are special. Break into chunks
-                    for x in xrange(len(i)/chunk_size):
-                        # pull relevant strip and transpose for indexing fun.
-                        x_strip = i[x*chunk_size:(x+1)*chunk_size].transpose()
-                        for y in xrange(len(i[0])/chunk_size):
-                            Y=y*chunk_size
-                            sub_image = x_strip[y*chunk_size:(y+1)*chunk_size].transpose()
-                            train_images.append(sub_image.flatten())
-                            train_classes.append(c)
+                    train_images.append(i)
+                    train_classes.append(c)
         for idx in range(len(images)):
             (images[idx], classes[idx]) = shuffle(images[idx],classes[idx])
         for idx in range(len(images)):
@@ -155,4 +148,12 @@ def load_data_chunk(sub_sample = 1.0,
         cPickle.dump(data, open(cacheFile,'w'))
     rval = map(shared_dataset, data)
     return rval
-
+def chunkify(i, chunk_size):
+    chunks = []
+    for x in xrange(len(i)/chunk_size):
+        # pull relevant strip and transpose for indexing fun.
+        for y in xrange(len(i[0])/chunk_size):
+            X=x*chunk_size
+            Y=y*chunk_size
+            chunks.append(i[x:x+chunk_size,y:y+chunk_size].flatten())
+    return chunks

@@ -4,7 +4,7 @@ import theano
 import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
 
-from util import load_data
+from util import load_data, chunkify
 from utils import tile_raster_images
 
 import PIL.Image
@@ -12,7 +12,7 @@ import PIL.Image
 class dA(object):
     def __init__(self, numpy_rng, theano_rng=None, input=None,
                  n_visible=784, n_hidden=500,
-                 W=None, bhid=None, bvis=None):
+                 W=None, bhid=None, bvis=None, chunks=5):
         self.n_visible = n_visible
         self.n_hidden = n_hidden
 
@@ -65,6 +65,24 @@ class dA(object):
     def get_hidden_values(self, input):
         return T.nnet.sigmoid(T.dot(input, self.W) + self.b)
 
+    # this totally doesn't work atm
+    def get_hidden_values_max_pooled(self, input,step=1):
+        i = input.get_value(borrow=True)
+        xvals = range(0,i.shape(0),step)
+        yvals = range(0,i.shape(1),step)
+        outputs = [[0 for y in range(len(yvals))] for x in range(len(xvals))]
+        for x in range(len(xvals)):
+            for y in range(0,i.shape(0),step):
+                i[xvals[x]:xvals[x]+self.chunk,yvals[y]:yvals[y]+self.chunk]
+                outputs[x,y]=self.get_hidden_values(shared_i).eval()
+        # reshape into something maxpool will like
+        shared_x = theano.shared(numpy.asarray(outputs,
+                                           dtype=theano.config.floatX),
+                             borrow=borrow)
+        # actually our dimensionality is off :/
+        return 
+                
+        
     def get_reconstructed_input(self, hidden):
         return  T.nnet.sigmoid(T.dot(hidden, self.W_prime) + self.b_prime)
 
@@ -85,13 +103,19 @@ class dA(object):
 def train_dA(learning_rate=0.1, training_epochs=500, batch_size=30):
     d = load_data()
     train_x, train_y = d[0]
-    
+    # transform training data into  what we want
+    xs=train_x.get_value(borrow=True)
+    real_train = []
+    for x in xs:        
+        real_train += chunkify(x,self.chunks)
+    train_x = theano.shared(numpy.asarray(real_train,
+                                           dtype=theano.config.floatX), borrow=True)
     n_train_batches = train_x.get_value(borrow=True).shape[0] / batch_size
     index = T.lscalar() # index to a [mini]batch
     x = T.matrix('x')  # the data is presented as rasterized images    
 
     rng = numpy.random.RandomState(123)
-    theano_rng = RandomStreams(rng.randint(2 ** 30))    
+    theano_rng = RandomStreams(rng.randint(2 ** 30))
     image_size = train_x.get_value(borrow=True).shape[1]
     da = dA(numpy_rng=rng, theano_rng=theano_rng, input=x,
             n_visible=image_size, n_hidden=500)
