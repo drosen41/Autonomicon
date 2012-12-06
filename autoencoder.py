@@ -15,7 +15,7 @@ class dA(object):
                  W=None, bhid=None, bvis=None, chunk=5):
         self.n_visible = n_visible
         self.n_hidden = n_hidden
-        self.chunk=5
+        self.chunk=theano.shared(chunk)
         # create a Theano random generator that gives symbolic random values
         if not theano_rng:
             theano_rng = RandomStreams(numpy_rng.randint(2 ** 30))
@@ -67,23 +67,23 @@ class dA(object):
 
     # this returns a numpy array of the max weights for each output
     def get_hidden_values_max_pooled(self, input,step=1):
-        chunk=theano.shared(5)
         s = input.eval().shape
         print s
-        xvals = range(0,s[0]-chunk.get_value(),step)
-        yvals = range(0,s[1]-chunk.get_value(),step)
+        xvals = range(0,s[0]-self.chunk.get_value(),step)
+        yvals = range(0,s[1]-self.chunk.get_value(),step)
         print xvals,yvals
         outputs = numpy.zeros((len(yvals)*len(xvals),self.n_hidden))
         i = T.scalar('i',dtype='int32')
         j = T.scalar('j',dtype='int32')
         m = T.matrix('m')
-        sub_matrix = theano.function([i,j],m[i:i+chunk,j:j+chunk],givens={m:input})
+        sub_matrix = theano.function([i,j],
+                m[i:i+self.chunk.get_value(), j:j+self.chunk.get_value()],givens={m:input})
         get_vals = theano.function([self.x],self.get_hidden_values(self.x))
         c=0
         for x in range(len(xvals)):
             for y in range(len(yvals)):
                 sub = sub_matrix(xvals[x],yvals[y]).reshape((1,-1))
-                print "sub:",sub,chunk.get_value()
+                print "sub:",sub,self.chunk.get_value()
                 outputs[c,:]=numpy.squeeze(get_vals(sub))
                 c += 1
         # reshape into something maxpool will like
