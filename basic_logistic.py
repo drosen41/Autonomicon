@@ -46,13 +46,11 @@ class LogisticRegression(object):
 
 
 
-def learn(batch_size = 50,
+def learn(train_set, test_set, batch_size = 50,
           learning_rate=0.13,
           n_epochs=10000):
-    data = load_data(validation_sample = 0)
-    train_x, train_y = data[0]
-    test_x, test_y = data[1]
-    
+    train_x, train_y = train_set
+    test_x, test_y = test_set
     n_train_batches = train_x.get_value(borrow=True).shape[0] / batch_size
     print "Building Model"
 
@@ -101,4 +99,5 @@ def learn(batch_size = 50,
                 print "Test Errors", test_model()
                 print "Train Errors", test_train_model()
 if __name__ == '__main__':
-    learn()
+    data = load_data(validation_sample = 0)
+    learn(data[0], data[1])

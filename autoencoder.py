@@ -4,7 +4,7 @@ import theano
 import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
 
-from util import load_data
+from util import load_data, chunkify
 from utils import tile_raster_images
 
 import PIL.Image
@@ -12,10 +12,10 @@ import PIL.Image
 class dA(object):
     def __init__(self, numpy_rng, theano_rng=None, input=None,
                  n_visible=784, n_hidden=500,
-                 W=None, bhid=None, bvis=None):
+                 W=None, bhid=None, bvis=None, chunk=5):
         self.n_visible = n_visible
         self.n_hidden = n_hidden
-
+        self.chunk=theano.shared(chunk)
         # create a Theano random generator that gives symbolic random values
         if not theano_rng:
             theano_rng = RandomStreams(numpy_rng.randint(2 ** 30))
@@ -65,6 +65,29 @@ class dA(object):
     def get_hidden_values(self, input):
         return T.nnet.sigmoid(T.dot(input, self.W) + self.b)
 
+    # this returns a numpy array of the max weights for each output
+    def get_hidden_values_max_pooled(self, input,step=1):
+        s = input.eval().shape
+        xvals = range(0,s[0]-self.chunk.get_value(),step)
+        yvals = range(0,s[1]-self.chunk.get_value(),step)
+        outputs = numpy.zeros((len(yvals)*len(xvals),self.n_hidden))
+        i = T.scalar('i',dtype='int32')
+        j = T.scalar('j',dtype='int32')
+        m = T.matrix('m')
+        sub_matrix = theano.function([i,j],
+                m[i:i+self.chunk.get_value(), j:j+self.chunk.get_value()],givens={m:input})
+        get_vals = theano.function([self.x],self.get_hidden_values(self.x))
+        c=0
+        for x in range(len(xvals)):
+            for y in range(len(yvals)):
+                sub = sub_matrix(xvals[x],yvals[y]).reshape((1,-1))
+                outputs[c,:]=numpy.squeeze(get_vals(sub))
+                c += 1
+        # reshape into something maxpool will like
+        # actually our dimensionality is off :/
+        return outputs.max(0)
+                
+        
     def get_reconstructed_input(self, hidden):
         return  T.nnet.sigmoid(T.dot(hidden, self.W_prime) + self.b_prime)
 
@@ -82,19 +105,23 @@ class dA(object):
 
         return (cost, updates)
 
-def train_dA(learning_rate=0.1, training_epochs=500, batch_size=30):
-    d = load_data()
-    train_x, train_y = d[0]
-    
+def train_dA(train_x, learning_rate=0.1, training_epochs=500, batch_size=30, chunk=5):
+    # transform training data into  what we want
+    xs=train_x.get_value(borrow=True)
+    real_train = []
+    for x in xs:        
+        real_train += chunkify(x,chunk)
+    train_x = theano.shared(numpy.asarray(real_train,
+                                           dtype=theano.config.floatX), borrow=True)
     n_train_batches = train_x.get_value(borrow=True).shape[0] / batch_size
     index = T.lscalar() # index to a [mini]batch
     x = T.matrix('x')  # the data is presented as rasterized images    
 
     rng = numpy.random.RandomState(123)
-    theano_rng = RandomStreams(rng.randint(2 ** 30))    
+    theano_rng = RandomStreams(rng.randint(2 ** 30))
     image_size = train_x.get_value(borrow=True).shape[1]
     da = dA(numpy_rng=rng, theano_rng=theano_rng, input=x,
-            n_visible=image_size, n_hidden=500)
+            n_visible=image_size, n_hidden=int(.6*image_size), chunk=chunk)
 
     cost, updates = da.get_cost_updates(corruption_level=0.3,
                                         learning_rate=learning_rate)
@@ -110,11 +137,14 @@ def train_dA(learning_rate=0.1, training_epochs=500, batch_size=30):
 
     image = PIL.Image.fromarray(tile_raster_images(
         X=da.W.get_value(borrow=True).T,
-        img_shape=(50, 50), tile_shape=(10, 10),
+        img_shape=(chunk, chunk), tile_shape=(10, 10),
         tile_spacing=(1, 1)))
     image.save('filters_corruption_30.png')
+    return da
 
 
 if __name__ == '__main__':
-    train_dA()
+    d = load_data()
+    train_x, train_y = d[0]
+    train_dA(train_x)
 
