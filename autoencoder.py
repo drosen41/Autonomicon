@@ -68,10 +68,8 @@ class dA(object):
     # this returns a numpy array of the max weights for each output
     def get_hidden_values_max_pooled(self, input,step=1):
         s = input.eval().shape
-        print s
         xvals = range(0,s[0]-self.chunk.get_value(),step)
         yvals = range(0,s[1]-self.chunk.get_value(),step)
-        print xvals,yvals
         outputs = numpy.zeros((len(yvals)*len(xvals),self.n_hidden))
         i = T.scalar('i',dtype='int32')
         j = T.scalar('j',dtype='int32')
@@ -83,7 +81,6 @@ class dA(object):
         for x in range(len(xvals)):
             for y in range(len(yvals)):
                 sub = sub_matrix(xvals[x],yvals[y]).reshape((1,-1))
-                print "sub:",sub,self.chunk.get_value()
                 outputs[c,:]=numpy.squeeze(get_vals(sub))
                 c += 1
         # reshape into something maxpool will like
