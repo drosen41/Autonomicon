@@ -15,18 +15,19 @@ from autoencoder import dA, train_dA
 cacheFile='da.pkl'
 d = load_data()
 train_x, train_y = d[0]
-test_x, test_y = d[0]
+test_x, test_y = d[1]
 if(os.path.isfile(cacheFile)):
     cF = open(cacheFile)
     da = cPickle.load(cF)
 else:
     da=train_dA(train_x, learning_rate=0.1, training_epochs=50, batch_size=30)
     cPickle.dump(da, open(cacheFile,'w'))
-output_train_x = []
+
 l=train_x.get_value(borrow=True).shape[0]
-for i in range(l/10):
+output_train_x = [0]*l
+for i in range(l):
     print i/float(l)
-    output_train_x.append(da.get_hidden_values_max_pooled(train_x[i]))
+    output_train_x[i]=da.get_hidden_values_max_pooled(train_x[i],2)
 output_train_x = numpy.dstack(output_train_x)
 output_train_x = numpy.squeeze(output_train_x)
 output_train_x = numpy.transpose(output_train_x)
@@ -35,4 +36,17 @@ shared_x = theano.shared(numpy.asarray(output_train_x,
                              borrow=True)
 data = [shared_x, train_y[:output_train_x.shape[0]]]
 
-learn(data,data)
+l=test_x.get_value(borrow=True).shape[0]
+output_test_x = [0]*l
+for i in range(l):
+    print i/float(l)
+    output_test_x[i]=da.get_hidden_values_max_pooled(test_x[i],2)
+output_test_x = numpy.dstack(output_test_x)
+output_test_x = numpy.squeeze(output_test_x)
+output_test_x = numpy.transpose(output_test_x)
+shared_x_t = theano.shared(numpy.asarray(output_test_x,
+                                           dtype=theano.config.floatX),
+                             borrow=True)
+data_test = [shared_x_t, test_y[:output_test_x.shape[0]]]
+
+learn(data,data_test)
