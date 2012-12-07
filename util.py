@@ -53,7 +53,7 @@ def load_data(sub_sample = 1.0,
                 i = Image.open(p + im)
                 # convert to grayscale
                 i = ImageOps.grayscale(i)
-                i = i.resize((28,28),Image.ANTIALIAS)
+                i = i.resize((30,30),Image.ANTIALIAS)
                 # convert to numpy array and normalize to [0,1]
                 i = numpy.array(i, dtype=numpy.float32)/255
                 # i = i.flatten()

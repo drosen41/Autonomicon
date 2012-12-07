@@ -105,7 +105,7 @@ class dA(object):
 
         return (cost, updates)
 
-def train_dA(train_x, learning_rate=0.1, training_epochs=500, batch_size=30, chunk=5):
+def train_dA(train_x, learning_rate=0.1, training_epochs=500, batch_size=30, chunk=3,corruption_level=.3,rel_hidden=.6):
     # transform training data into  what we want
     xs=train_x.get_value(borrow=True)
     real_train = []
@@ -121,9 +121,9 @@ def train_dA(train_x, learning_rate=0.1, training_epochs=500, batch_size=30, chu
     theano_rng = RandomStreams(rng.randint(2 ** 30))
     image_size = train_x.get_value(borrow=True).shape[1]
     da = dA(numpy_rng=rng, theano_rng=theano_rng, input=x,
-            n_visible=image_size, n_hidden=int(.6*image_size), chunk=chunk)
+            n_visible=image_size, n_hidden=int(rel_hidden*image_size), chunk=chunk)
 
-    cost, updates = da.get_cost_updates(corruption_level=0.3,
+    cost, updates = da.get_cost_updates(corruption_level=corruption_level,
                                         learning_rate=learning_rate)
 
     train_da = theano.function([index], cost, updates=updates,
@@ -137,7 +137,7 @@ def train_dA(train_x, learning_rate=0.1, training_epochs=500, batch_size=30, chu
 
     image = PIL.Image.fromarray(tile_raster_images(
         X=da.W.get_value(borrow=True).T,
-        img_shape=(chunk, chunk), tile_shape=(10, 10),
+        img_shape=(chunk, chunk), tile_shape=(int((rel_hidden*image_size)**.5+1),int((rel_hidden*image_size)**.5+1)),
         tile_spacing=(1, 1)))
     image.save('filters_corruption_30.png')
     return da

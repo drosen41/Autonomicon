@@ -1,0 +1,12 @@
+Much of this code is based off of the tutorials found at: http://deeplearning.net/tutorial/
+
+Running this code requires the installation of theano. Instructions here: http://deeplearning.net/software/theano/install.html
+
+test.py contains test code for running the 1-layer denoising autoencoder, with a logistic regression classifier.
+
+To run tests for autoencoder_1d, convolutional_mlp, and basic_logistic, just run the files as is. They contain main's that will train and test the model.
+
+To adjust image scaling, look in util.py's load_data function.
+
+To train new models off of new data, remove the .pkl files. These allow you to use the same data for multiple models, or to avoid redoing work if something
+crashes part way through.
